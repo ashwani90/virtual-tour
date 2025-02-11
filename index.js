@@ -1,43 +1,23 @@
-import React from 'react';
-import {
-  AppRegistry,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-360';
+import { ReactInstance } from 'react-360-web';
 
-export default class vr_tour extends React.Component {
-  render() {
-    return (
-      <View style={styles.panel}>
-        <View style={styles.greetingBox}>
-          <Text style={styles.greeting}>
-            Welcome to React 360
-          </Text>
-        </View>
-      </View>
-    );
-  }
-};
+function init(bundle, parent, options = {}) {
+  const r360 = new ReactInstance(bundle, parent, {
+    fullScreen: true,
+    ...options,
+  });
 
-const styles = StyleSheet.create({
-  panel: {
-    // Fill the entire surface
-    width: 1000,
-    height: 600,
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  greetingBox: {
-    padding: 20,
-    backgroundColor: '#000000',
-    borderColor: '#639dda',
-    borderWidth: 2,
-  },
-  greeting: {
-    fontSize: 30,
-  },
-});
+  // Set camera position
+  r360.controls.clearCameraOrbit();
+  r360.controls.moveCamera(0, 1.6, 0); // Adjust height
 
-AppRegistry.registerComponent('vr_tour', () => vr_tour);
+  // Render room component
+  r360.renderToSurface(
+    r360.createRoot('Room'),
+    r360.getDefaultSurface()
+  );
+
+  // Set environment (background image)
+  r360.compositor.setBackground(r360.getAssetURL('360_room.jpg'));
+}
+
+window.React360 = { init };
