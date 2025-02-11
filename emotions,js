@@ -1,0 +1,131 @@
+const ws = new WebSocket("ws://localhost:6789");
+
+ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    updateFacialExpression(data.emotion);
+};
+
+const updateFacialExpression = (emotion) => {
+    const expressions = {
+        happy: "Smile",
+        sad: "Frown",
+        angry: "Angry",
+        neutral: "Neutral"
+    };
+
+    if (model) {
+        model.traverse((child) => {
+            if (child.isMesh && child.morphTargetDictionary) {
+                const shapeIndex = child.morphTargetDictionary[expressions[emotion]];
+                if (shapeIndex !== undefined) {
+                    child.morphTargetInfluences[shapeIndex] = 1.0;
+                }
+            }
+        });
+    }
+};
+
+
+const recognizeSpeech = () => {
+    const recognition = new window.SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.start();
+
+    recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        console.log("User said:", transcript);
+        processVoiceCommand(transcript);
+    };
+
+    recognition.onerror = (event) => {
+        console.error("Speech recognition error", event);
+    };
+};
+
+
+const processVoiceCommand = (command) => {
+    command = command.toLowerCase();
+
+    if (command.includes("go to the next room")) {
+        changeScene("nextRoom");
+    } else if (command.includes("show me the map")) {
+        openMap();
+    } else if (command.includes("tell me about this place")) {
+        aiGuideRespond("This is the main hall, built in 1850...");
+    }
+};
+
+
+const saveUserInterest = (interest) => {
+    let interests = JSON.parse(localStorage.getItem("userInterests")) || [];
+    if (!interests.includes(interest)) {
+        interests.push(interest);
+        localStorage.setItem("userInterests", JSON.stringify(interests));
+    }
+};
+
+const getUserInterests = () => {
+    return JSON.parse(localStorage.getItem("userInterests")) || [];
+};
+
+
+const generatePersonalizedResponse = (baseResponse) => {
+    const interests = getUserInterests();
+    if (interests.length > 0) {
+        return `${baseResponse} Since you're interested in ${interests.join(", ")}, you might also like this information.`;
+    }
+    return baseResponse;
+};
+
+// Example usage
+const aiGuideRespond = (text) => {
+    const response = generatePersonalizedResponse(text);
+    console.log("AI Guide:", response);
+};
+
+
+import { initializeApp } from "firebase/app";
+import { getFirestore, doc, setDoc, getDoc } from "firebase/firestore";
+
+const firebaseConfig = {
+    apiKey: "YOUR_FIREBASE_API_KEY",
+    authDomain: "YOUR_FIREBASE_PROJECT.firebaseapp.com",
+    projectId: "YOUR_FIREBASE_PROJECT_ID",
+    storageBucket: "YOUR_FIREBASE_PROJECT.appspot.com",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+
+const saveUserInteraction = async (userId, interaction) => {
+    const userRef = doc(db, "users", userId);
+    const userDoc = await getDoc(userRef);
+    
+    let userData = userDoc.exists() ? userDoc.data() : { interactions: [] };
+    userData.interactions.push(interaction);
+
+    await setDoc(userRef, userData);
+};
+
+const getUserHistory = async (userId) => {
+    const userRef = doc(db, "users", userId);
+    const userDoc = await getDoc(userRef);
+    
+    return userDoc.exists() ? userDoc.data().interactions : [];
+};
+
+
+const generateResponseWithMemory = async (userId, baseResponse) => {
+    const history = await getUserHistory(userId);
+
+    if (history.length > 0) {
+        return `${baseResponse} I remember you previously asked about ${history.slice(-1)[0]}. Would you like to know more?`;
+    }
+
+    return baseResponse;
+};
+
+
